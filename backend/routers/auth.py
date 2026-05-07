@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from ..database import get_db_connection
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+router = APIRouter(tags=["auth"])
 
 @router.post("/register")
 async def register(name: str, email: str, password: str):
