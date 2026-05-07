@@ -11,7 +11,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Абсолютный путь к frontend
 FRONTEND_DIR = BASE_DIR / "frontend"
-INDEX_PATH = BASE_DIR / "frontend" / "index.html" 
+INDEX_PATH = BASE_DIR / "frontend" / "index.html"
 
 app = FastAPI(title="Фильмотека API", version="1.0.0")
 
@@ -29,12 +29,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# API роуты
+# ========== API РОУТЫ (ЕДИНООБРАЗНЫЕ ПРЕФИКСЫ) ==========
 app.include_router(movies.router, prefix="/api/movies")
-app.include_router(reviews.router, prefix="/api")
-app.include_router(auth.router, prefix="/api")
+app.include_router(reviews.router, prefix="/api/reviews")
+app.include_router(auth.router, prefix="/api/auth")
 
-# Статика (CSS, JS) 
+# ========== СТАТИКА ==========
+# CSS, JS из папки frontend
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
 # Постеры
