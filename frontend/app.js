@@ -71,6 +71,39 @@ function loadUserData() {
     updateAuthUI();
 }
 
+// ========== ЗАГРУЗКА ОТЗЫВОВ С СЕРВЕРА ==========
+async function loadReviews(movieId) {
+    try {
+        const res = await fetch(`${API_URL}/reviews/${movieId}`);
+        if (res.ok) {
+            return await res.json();
+        }
+        return [];
+    } catch (e) {
+        console.error('Ошибка загрузки отзывов:', e);
+        return [];
+    }
+}
+
+// ========== ОТПРАВКА ОТЗЫВА НА СЕРВЕР ==========
+async function sendReview(movieId, rating, comment, author) {
+    try {
+        const response = await fetch(`${API_URL}/reviews/?movie_id=${movieId}&rating=${rating}&comment=${encodeURIComponent(comment)}&author=${encodeURIComponent(author)}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        if (response.ok) {
+            return await response.json();
+        }
+        return null;
+    } catch (e) {
+        console.error('Ошибка отправки отзыва:', e);
+        return null;
+    }
+}
+
 // ========== ЗАГРУЗКА ДАННЫХ ИЗ API ==========
 async function loadAllData() {
     try {
@@ -100,7 +133,7 @@ function renderScrollMovies(containerId, movieList) {
     for (const m of movieList) {
         html += `<div class="movie-card">
             <div class="movie-poster" onclick="navigate('movieDetail', ${m.id})">
-                <img src="${m.poster}" class="poster-img" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'300\' height=\'450\' viewBox=\'0 0 300 450\'%3E%3Crect width=\'300\' height=\'450\' fill=\'%23434B4D\'/%3E%3Ctext x=\'150\' y=\'225\' text-anchor=\'middle\' dominant-baseline=\'middle\' font-size=\'40\' fill=\'white\'%3E🎬%3C/text%3E%3C/svg%3E\'">
+                <img src="${m.poster}" class="poster-img" onerror="this.src='data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='450' viewBox='0 0 300 450'%3E%3Crect width='300' height='450' fill='%23434B4D'/%3E%3Ctext x='150' y='225' text-anchor='middle' dominant-baseline='middle' font-size='40' fill='white'%3E🎬%3C/text%3E%3C/svg%3E'">
             </div>
             <div class="movie-info">
                 <div class="movie-title">${escapeHtml(m.title)}</div>
@@ -127,7 +160,7 @@ function renderMoviesList(movieList, containerId = 'moviesGrid', isClickable = t
         const clickAttr = isClickable ? `onclick="navigate('movieDetail', ${m.id})"` : '';
         html += `<div class="movie-card">
             <div class="movie-poster" ${clickAttr}>
-                <img src="${m.poster}" class="poster-img" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'300\' height=\'450\' viewBox=\'0 0 300 450\'%3E%3Crect width=\'300\' height=\'450\' fill=\'%23434B4D\'/%3E%3Ctext x=\'150\' y=\'225\' text-anchor=\'middle\' dominant-baseline=\'middle\' font-size=\'40\' fill=\'white\'%3E🎬%3C/text%3E%3C/svg%3E\'">
+                <img src="${m.poster}" class="poster-img" onerror="this.src='data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='450' viewBox='0 0 300 450'%3E%3Crect width='300' height='450' fill='%23434B4D'/%3E%3Ctext x='150' y='225' text-anchor='middle' dominant-baseline='middle' font-size='40' fill='white'%3E🎬%3C/text%3E%3C/svg%3E'">
             </div>
             <div class="movie-info">
                 <div class="movie-title">${escapeHtml(m.title)}</div>
@@ -277,11 +310,14 @@ function resetFilters() {
     renderPaginatedMovies();
 }
 
-function showMovieDetail(id) {
+async function showMovieDetail(id) {
     currentMovieId = id;
     localStorage.setItem('currentMovieId', id);
     const movie = allMovies.find(m => m.id === id);
     if (!movie) return;
+    
+    // Загружаем отзывы с сервера
+    const reviews = await loadReviews(id);
     
     let actorsHtml = '';
     if (movie.actors?.length) {
@@ -292,11 +328,35 @@ function showMovieDetail(id) {
     
     const isFav = isFavorite(movie.id);
     
+    // Рендерим отзывы
+    let reviewsHtml = '';
+    if (reviews && reviews.length > 0) {
+        reviewsHtml = '<div class="reviews-list">';
+        for (const r of reviews) {
+            const starsCount = Math.round(r.rating / 2);
+            let stars = '';
+            for (let s = 0; s < 5; s++) stars += s < starsCount ? '★' : '☆';
+            reviewsHtml += `
+                <div class="review">
+                    <div class="review-header">
+                        <span class="review-author">👤 ${escapeHtml(r.author_name || 'Аноним')}</span>
+                        <span class="review-stars">${stars}</span>
+                        <span>${r.rating}/10</span>
+                    </div>
+                    <div class="review-text">${escapeHtml(r.comment)}</div>
+                </div>
+            `;
+        }
+        reviewsHtml += '</div>';
+    } else {
+        reviewsHtml = '<p>Пока нет отзывов. Будьте первым!</p>';
+    }
+    
     const detailHtml = `<div class="detail-card">
         <button class="btn-back" onclick="navigate('movies')">← Назад</button>
         <div class="detail-content">
             <div class="detail-poster">
-                <img src="${movie.poster}" class="detail-poster-img" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'300\' height=\'450\' viewBox=\'0 0 300 450\'%3E%3Crect width=\'300\' height=\'450\' fill=\'%23434B4D\'/%3E%3Ctext x=\'150\' y=\'225\' text-anchor=\'middle\' dominant-baseline=\'middle\' font-size=\'40\' fill=\'white\'%3E🎬%3C/text%3E%3C/svg%3E\'">
+                <img src="${movie.poster}" class="detail-poster-img" onerror="this.src='data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='450' viewBox='0 0 300 450'%3E%3Crect width='300' height='450' fill='%23434B4D'/%3E%3Ctext x='150' y='225' text-anchor='middle' dominant-baseline='middle' font-size='40' fill='white'%3E🎬%3C/text%3E%3C/svg%3E'">
             </div>
             <div class="detail-info">
                 <h2>${escapeHtml(movie.title)}</h2>
@@ -321,6 +381,7 @@ function showMovieDetail(id) {
         </div>
         <div class="reviews-wrapper">
             <h3>📝 Отзывы</h3>
+            <div id="reviewsContainer">${reviewsHtml}</div>
             <div class="review-form-container">
                 <h4>Оставить отзыв</h4>
                 <input type="text" id="reviewAuthor" placeholder="Ваше имя" value="${currentUser ? currentUser.name : ''}">
@@ -342,18 +403,26 @@ function showMovieDetail(id) {
     showScreen('movieDetailScreen', movie.id);
 }
 
-function submitReview(movieId) {
+async function submitReview(movieId) {
     if (!currentUser) { alert('Войдите в аккаунт'); navigate('login'); return; }
     const author = document.getElementById('reviewAuthor').value || currentUser.name;
     const rating = parseInt(document.getElementById('reviewRating').value);
     const comment = document.getElementById('reviewComment').value;
     if (!rating || rating < 1 || rating > 10) { alert('Выберите оценку'); return; }
     if (!comment.trim()) { alert('Напишите отзыв'); return; }
-    if (!userReviews[movieId]) userReviews[movieId] = [];
-    userReviews[movieId].push({ author, rating, text: comment });
-    saveUserData();
-    alert('Отзыв добавлен!');
-    showMovieDetail(movieId);
+    
+    // Отправляем на сервер
+    const result = await sendReview(movieId, rating, comment, author);
+    if (result) {
+        alert('Отзыв добавлен!');
+        document.getElementById('reviewAuthor').value = '';
+        document.getElementById('reviewRating').value = '';
+        document.getElementById('reviewComment').value = '';
+        // Обновляем страницу с фильмом, чтобы показать новый отзыв
+        showMovieDetail(movieId);
+    } else {
+        alert('Ошибка при добавлении отзыва');
+    }
 }
 
 function escapeHtml(str) {
