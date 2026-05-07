@@ -7,15 +7,18 @@ from pathlib import Path
 from .database import init_db
 from .routers import movies, reviews, auth
 
-# 1. Сначала создаём приложение
+# ========== БАЗОВАЯ ДИРЕКТОРИЯ ==========
+BASE_DIR = Path(__file__).resolve().parent  # backend/
+
+# ==========  ПРИЛОЖЕНИЕ ==========
 app = FastAPI(title="Фильмотека API", version="1.0.0")
 
-# 2. Потом инициализируем БД 
+# ========== БАЗА ДАННЫХ ==========
 @app.on_event("startup")
 def startup():
     init_db()
 
-# 3. CORS
+# ==========  CORS ==========
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,18 +27,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 4. Роутеры
+# ========== РОУТЕРЫ API ==========
 app.include_router(movies.router)
 app.include_router(reviews.router)
 app.include_router(auth.router)
 
-# 5. Статика (только постеры)
-app.mount("/posters", StaticFiles(directory="posters"), name="posters")
+# ========== СТАТИКА (постеры) ==========
+POSTERS_DIR = BASE_DIR / "posters"
+app.mount("/posters", StaticFiles(directory=POSTERS_DIR), name="posters")
 
-# 6. Базовая директория 
-BASE_DIR = Path(__file__).resolve().parent
-
-# 7. ЧПУ для фронтенда 
-@app.get("/{full_path:path}")
-def serve_frontend(full_path: str):
+# ==========  SPA FALLBACK (==========
+@app.get("/{path:path}")
+async def spa(path: str):
+    if path.startswith("posters") or path.startswith("docs") or path.startswith("openapi"):
+        return {"error": "not found"}
     return FileResponse(BASE_DIR / "index.html")
