@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from ..database import get_db_connection
 
-router = APIRouter(prefix="/api/reviews", tags=["reviews"])
+router = APIRouter(tags=["reviews"])
 
 @router.get("/{movie_id}")
 async def get_reviews(movie_id: int):
