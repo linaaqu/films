@@ -7,20 +7,18 @@ from pathlib import Path
 from .database import init_db
 from .routers import movies, reviews, auth
 
-# ========== ROOT ==========
-BASE_DIR = Path(__file__).resolve().parent.parent  # films/
+BASE_DIR = Path(__file__).resolve().parent.parent
+FRONTEND_DIR = BASE_DIR / "frontend"
+INDEX_PATH = FRONTEND_DIR / "index.html"
 
-INDEX_PATH = BASE_DIR / "frontend" / "index.html"
-
-# ========== APP ==========
 app = FastAPI(title="Фильмотека API", version="1.0.0")
 
-# ========== DB ==========
+# DB
 @app.on_event("startup")
 def startup():
     init_db()
 
-# ========== CORS ==========
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -29,18 +27,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ========== ROUTERS ==========
-app.include_router(movies.router)
-app.include_router(reviews.router)
-app.include_router(auth.router)
+# API роуты
+app.include_router(movies.router, prefix="/api/movies")
+app.include_router(reviews.router, prefix="/api")
+app.include_router(auth.router, prefix="/api")
 
-# ========== STATIC ==========
+# Статика (CSS, JS)
+app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+
+# Постеры
 POSTERS_DIR = BASE_DIR / "posters"
-
 if POSTERS_DIR.exists():
     app.mount("/posters", StaticFiles(directory=POSTERS_DIR), name="posters")
 
-# ========== SPA ==========
-@app.get("/{path:path}")
-async def spa(path: str):
+# SPA fallback 
+@app.get("/{full_path:path}")
+async def spa(full_path: str):
+    if full_path.startswith(("api", "static", "posters")):
+        return {"detail": "Not found"}
     return FileResponse(INDEX_PATH)
