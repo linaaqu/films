@@ -8,7 +8,7 @@ let currentPage = 1;
 const itemsPerPage = 20;
 let filteredMovies = [];
 
-const API_URL = "http://127.0.0.1:8000/api";
+const API_URL = "/api";
 
 // ========== РОУТЕР ==========
 function navigate(screen, movieId = null) {
